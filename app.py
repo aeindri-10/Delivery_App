@@ -4,7 +4,6 @@ import sys
 
 app = Flask(__name__)
 
-# --- MODEL DEFINITION ---
 class DeliveryModel:
     def __init__(self):
         self.base_time = 0.5
@@ -14,15 +13,12 @@ class DeliveryModel:
     def predict(self, distance, weight):
         return self.base_time + (distance * self.dist_coeff) + (weight * self.weight_coeff)
 
-# --- ROBUST PICKLE LOADING FIX ---
-# This custom loader forces Pickle to find the class correctly under Gunicorn
 class CustomUnpickler(pickle.Unpickler):
     def find_class(self, module, name):
         if module == '__main__':
             return DeliveryModel
         return super().find_class(module, name)
 
-# Load the saved model using our CustomUnpickler
 with open('delivery_model.pkl', 'rb') as file:
     model = CustomUnpickler(file).load()
 
