@@ -1,8 +1,10 @@
 from flask import Flask, request, jsonify
 import pickle
+import sys
 
 app = Flask(__name__)
 
+# --- MODEL DEFINITION ---
 class DeliveryModel:
     def __init__(self):
         self.base_time = 0.5
@@ -10,11 +12,19 @@ class DeliveryModel:
         self.weight_coeff = 0.1
 
     def predict(self, distance, weight):
-        return self.base_time + (distance * self.dist_coeff) 
-        + (weight * self.weight_coeff)
+        return self.base_time + (distance * self.dist_coeff) + (weight * self.weight_coeff)
 
+# --- ROBUST PICKLE LOADING FIX ---
+# This custom loader forces Pickle to find the class correctly under Gunicorn
+class CustomUnpickler(pickle.Unpickler):
+    def find_class(self, module, name):
+        if module == '__main__':
+            return DeliveryModel
+        return super().find_class(module, name)
+
+# Load the saved model using our CustomUnpickler
 with open('delivery_model.pkl', 'rb') as file:
-    model = pickle.load(file)
+    model = CustomUnpickler(file).load()
 
 @app.route('/')
 def home():
@@ -22,17 +32,13 @@ def home():
 
 @app.route('/predict', methods=['POST'])
 def predict():
-    # Get JSON data from the request
     data = request.get_json()
     
-    # Extract values
     dist = data.get('distance')
     weight = data.get('weight')
     
-    # Calculate prediction
     prediction = model.predict(dist, weight)
     
-    # Return the result as JSON
     return jsonify({
         "estimated_delivery_time_hours": round(prediction, 2)
     })
